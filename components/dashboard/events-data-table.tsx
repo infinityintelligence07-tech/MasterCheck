@@ -8,6 +8,7 @@ import {
   useTable,
 } from "@tanstack/react-table";
 import { StatusDot } from "@/components/dashboard/status-dot";
+import { DeleteEventButton } from "@/components/events/delete-event-button";
 import { LeadsInlineEditor } from "@/components/leads/leads-inline-editor";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +35,11 @@ function initials(nome: string) {
 export function EventsDataTable({
   data,
   canWrite,
+  isAdmin,
 }: {
   data: DashboardEvent[];
   canWrite: boolean;
+  isAdmin: boolean;
 }) {
   const columns = columnHelper.columns([
     columnHelper.accessor((row) => `${row.cidade}/${row.uf}`, {
@@ -166,6 +169,21 @@ export function EventsDataTable({
         );
       },
     }),
+    ...(isAdmin
+      ? [
+          columnHelper.display({
+            id: "acoes",
+            header: () => <span className="sr-only">Ações</span>,
+            cell: ({ row }) => (
+              <DeleteEventButton
+                eventId={row.original.id}
+                eventName={`${row.original.cidade}/${row.original.uf}`}
+                variant="icon"
+              />
+            ),
+          }),
+        ]
+      : []),
   ]);
 
   const table = useTable({

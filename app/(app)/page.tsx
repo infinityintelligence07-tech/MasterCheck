@@ -10,12 +10,14 @@ export default async function HomePage() {
   ]);
 
   const canWrite = profile?.role === "admin" || profile?.role === "operador";
+  const isAdmin = profile?.role === "admin";
 
   return (
     <DashboardView
       events={events}
       operators={operators}
       canWrite={canWrite}
+      isAdmin={isAdmin}
     />
   );
 }

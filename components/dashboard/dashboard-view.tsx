@@ -33,10 +33,12 @@ export function DashboardView({
   events,
   operators,
   canWrite,
+  isAdmin,
 }: {
   events: DashboardEvent[];
   operators: Profile[];
   canWrite: boolean;
+  isAdmin: boolean;
 }) {
   const [filters, setFilters] = useState<DashboardFilters>(emptyFilters);
 
@@ -107,7 +109,11 @@ export function DashboardView({
         />
       ) : (
         <>
-          <EventsDataTable data={filtered} canWrite={canWrite} />
+          <EventsDataTable
+            data={filtered}
+            canWrite={canWrite}
+            isAdmin={isAdmin}
+          />
           <EventsMobileList data={filtered} canWrite={canWrite} />
         </>
       )}
