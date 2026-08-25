@@ -80,7 +80,7 @@ export function StatusDot({
   }
 
   return (
-    <div className="flex items-center justify-center gap-1">
+    <div className="flex items-center justify-center gap-0.5">
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -89,12 +89,18 @@ export function StatusDot({
             onClick={cycle}
             aria-label={`${label}: ${labelByStatus[optimistic]}. Clique para alternar.`}
             className={cn(
-              "size-2.5 rounded-full transition-opacity duration-150",
-              colorByStatus[optimistic],
-              canWrite && "hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex size-9 items-center justify-center rounded-md transition-colors duration-150",
+              canWrite && "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               pending && "opacity-60",
             )}
-          />
+          >
+            <span
+              className={cn(
+                "size-3 rounded-full",
+                colorByStatus[optimistic],
+              )}
+            />
+          </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs space-y-1 text-xs">
           <p className="font-medium">{label}</p>
@@ -119,10 +125,10 @@ export function StatusDot({
         <button
           type="button"
           onClick={(e) => void copyLink(e)}
-          className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+          className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`Copiar link de ${label}`}
         >
-          <Copy className="size-3" />
+          <Copy className="size-3.5" />
         </button>
       ) : null}
     </div>

@@ -175,11 +175,13 @@ export function EventsDataTable({
             id: "acoes",
             header: () => <span className="sr-only">Ações</span>,
             cell: ({ row }) => (
-              <DeleteEventButton
-                eventId={row.original.id}
-                eventName={`${row.original.cidade}/${row.original.uf}`}
-                variant="icon"
-              />
+              <div className="flex justify-center py-0.5">
+                <DeleteEventButton
+                  eventId={row.original.id}
+                  eventName={`${row.original.cidade}/${row.original.uf}`}
+                  variant="icon"
+                />
+              </div>
             ),
           }),
         ]
@@ -194,6 +196,7 @@ export function EventsDataTable({
 
   const headerGroups = table.getHeaderGroups();
   const rows = table.getRowModel().rows;
+  const actionsColumnIndex = isAdmin ? columns.length - 1 : -1;
 
   return (
     <div className="hidden overflow-auto rounded-lg border border-border md:block">
@@ -208,6 +211,8 @@ export function EventsDataTable({
                     "h-9 px-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground",
                     index === 0 &&
                       "sticky left-0 z-10 bg-muted/95 backdrop-blur-sm",
+                    index === actionsColumnIndex &&
+                      "sticky right-0 z-10 w-14 bg-muted/95 px-1 text-center backdrop-blur-sm",
                   )}
                 >
                   {header.isPlaceholder ? null : (
@@ -232,7 +237,7 @@ export function EventsDataTable({
             rows.map((row) => (
               <tr
                 key={row.id}
-                className="h-11 border-b border-border/80 hover:bg-muted/30"
+                className="h-12 border-b border-border/80 hover:bg-muted/30"
               >
                 {row.getAllCells().map((cell, index) => (
                   <td
@@ -241,6 +246,8 @@ export function EventsDataTable({
                       "px-2 align-middle",
                       index === 0 &&
                         "sticky left-0 z-10 bg-background/95 backdrop-blur-sm",
+                      index === actionsColumnIndex &&
+                        "sticky right-0 z-10 w-14 bg-background/95 px-1 text-center backdrop-blur-sm",
                     )}
                   >
                     <FlexRender cell={cell} />

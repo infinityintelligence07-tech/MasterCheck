@@ -44,16 +44,16 @@ export function DeleteEventButton({
         <TooltipTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="icon"
-            className="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="size-10 shrink-0 rounded-md border-border/70 bg-muted/30 text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
             disabled={pending}
             aria-label={
               eventName ? `Excluir ${eventName}` : "Excluir evento"
             }
             onClick={handleDelete}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-[18px]" />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="left">Excluir evento</TooltipContent>
