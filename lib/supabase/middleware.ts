@@ -43,7 +43,12 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", pathname);
+    // Evita next=/signin (rota legada do portal IAM)
+    const safeNext =
+      pathname === "/signin" || pathname.startsWith("/signin/")
+        ? "/"
+        : pathname;
+    url.searchParams.set("next", safeNext);
     return NextResponse.redirect(url);
   }
 

@@ -48,8 +48,15 @@ export async function signInWithPassword(
     return { ok: false, message: mapAuthError(error.message) };
   }
 
-  const next = String(formData.get("next") || "/");
-  redirect(next.startsWith("/") ? next : "/");
+  const rawNext = String(formData.get("next") || "/");
+  const next =
+    rawNext.startsWith("/") &&
+    !rawNext.startsWith("//") &&
+    rawNext !== "/signin" &&
+    !rawNext.startsWith("/signin/")
+      ? rawNext
+      : "/";
+  redirect(next);
 }
 
 export async function signInWithMagicLink(
