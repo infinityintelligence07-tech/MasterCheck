@@ -7,6 +7,11 @@ import { requireProfile } from "@/lib/auth";
 import { CHECKLIST_TIPOS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import {
+  createUrlVersion,
+  normalizeUrlVersions,
+  versionsToJson,
+} from "@/lib/url-versions";
+import {
   duplicateEventSchema,
   eventFormSchema,
 } from "@/lib/validations/events";
@@ -53,9 +58,51 @@ async function applyChecklistUrls(
   for (const tipo of CHECKLIST_TIPOS) {
     const url = urls[tipo];
     if (url === undefined) continue;
+    const normalized = url?.trim() ? url.trim() : null;
+
+    if (tipo === "lp_inscricao") {
+      const { data: current } = await supabase
+        .from("checklist_items")
+        .select("url, url_versions")
+        .eq("event_id", eventId)
+        .eq("tipo", tipo)
+        .maybeSingle();
+
+      let versions = normalizeUrlVersions(
+        current?.url_versions,
+        current?.url ?? null,
+      );
+
+      if (normalized === null) {
+        versions = [];
+      } else if (versions.length === 0) {
+        versions = [createUrlVersion({ label: "Principal", url: normalized })];
+      } else {
+        versions = [{ ...versions[0]!, url: normalized }, ...versions.slice(1)];
+      }
+
+      const { error } = await supabase
+        .from("checklist_items")
+        .update({
+          url: normalized,
+          url_versions: versionsToJson(versions),
+        })
+        .eq("event_id", eventId)
+        .eq("tipo", tipo);
+      if (error) throw new Error(error.message);
+      continue;
+    }
+
     const { error } = await supabase
       .from("checklist_items")
-      .update({ url })
+      .update({
+        url: normalized,
+        url_versions: versionsToJson(
+          normalized
+            ? [createUrlVersion({ label: "Principal", url: normalized })]
+            : [],
+        ),
+      })
       .eq("event_id", eventId)
       .eq("tipo", tipo);
     if (error) throw new Error(error.message);
@@ -249,12 +296,17 @@ export async function duplicateEvent(
   const items = (original.checklist_items ?? []) as Array<{
     tipo: (typeof CHECKLIST_TIPOS)[number];
     url: string | null;
+    url_versions?: unknown;
   }>;
 
   for (const item of items) {
     await supabase
       .from("checklist_items")
-      .update({ url: item.url, status: "pendente" })
+      .update({
+        url: item.url,
+        url_versions: (item.url_versions as never) ?? [],
+        status: "pendente",
+      })
       .eq("event_id", created.id)
       .eq("tipo", item.tipo);
   }

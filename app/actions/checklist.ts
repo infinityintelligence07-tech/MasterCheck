@@ -6,14 +6,21 @@ import { requireProfile } from "@/lib/auth";
 import { probeUrl, type LinkProbeResult } from "@/lib/link-test";
 import { createClient } from "@/lib/supabase/server";
 import {
+  createUrlVersion,
+  normalizeUrlVersions,
+  primaryUrlFromVersions,
+  versionsToJson,
+  type UrlVersion,
+} from "@/lib/url-versions";
+import {
   checklistObservacaoSchema,
   checklistStatusSchema,
   checklistUrlSchema,
+  checklistUrlVersionsSchema,
   testLinkSchema,
 } from "@/lib/validations/checklist";
 import type { ItemStatus } from "@/lib/constants";
 import type { Tables } from "@/types/database";
-
 export type ChecklistActionResult = {
   ok: boolean;
   message?: string;
@@ -161,9 +168,26 @@ export async function updateChecklistUrl(input: {
 
   const item = await getItemOrThrow(parsed.data.itemId);
   const supabase = await createClient();
+
+  let versions = normalizeUrlVersions(item.url_versions, item.url);
+
+  if (parsed.data.url === null) {
+    versions = [];
+  } else if (versions.length === 0) {
+    versions = [createUrlVersion({ label: "Principal", url: parsed.data.url })];
+  } else {
+    versions = [
+      { ...versions[0]!, url: parsed.data.url },
+      ...versions.slice(1),
+    ];
+  }
+
   const { error } = await supabase
     .from("checklist_items")
-    .update({ url: parsed.data.url })
+    .update({
+      url: parsed.data.url,
+      url_versions: versionsToJson(versions),
+    })
     .eq("id", parsed.data.itemId);
 
   if (error) {
@@ -180,6 +204,57 @@ export async function updateChecklistUrl(input: {
   });
 
   revalidatePath(`/eventos/${item.event_id}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function updateChecklistUrlVersions(input: {
+  itemId: string;
+  versions: UrlVersion[];
+}): Promise<ChecklistActionResult> {
+  const profile = await requireProfile();
+  if (!canWrite(profile.role)) {
+    return { ok: false, message: "Sem permissão." };
+  }
+
+  const parsed = checklistUrlVersionsSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Versões inválidas.",
+    };
+  }
+
+  const item = await getItemOrThrow(parsed.data.itemId);
+  const versions = parsed.data.versions;
+  const primary = primaryUrlFromVersions(versions);
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("checklist_items")
+    .update({
+      url: primary,
+      url_versions: versionsToJson(versions),
+    })
+    .eq("id", parsed.data.itemId);
+
+  if (error) {
+    return { ok: false, message: error.message };
+  }
+
+  await logChecklistActivity({
+    eventId: item.event_id,
+    userId: profile.id,
+    acao: "atualizou versões de URL",
+    campo: "url_versions",
+    valorAntigo: item.url,
+    valorNovo: primary
+      ? `${versions.length} versão(ões) · ${primary}`
+      : "sem URL",
+  });
+
+  revalidatePath(`/eventos/${item.event_id}`);
+  revalidatePath("/");
   return { ok: true };
 }
 

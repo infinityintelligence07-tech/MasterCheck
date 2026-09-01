@@ -17,7 +17,9 @@ import {
   updateChecklistObservacao,
   updateChecklistStatus,
   updateChecklistUrl,
+  updateChecklistUrlVersions,
 } from "@/app/actions/checklist";
+import { UrlVersionsEditor } from "@/components/checklist/url-versions-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +34,11 @@ import {
 import { formatDateTimeBr, formatRelativeBr } from "@/lib/dates";
 import { ITEM_STATUSES, type ItemStatus } from "@/lib/constants";
 import type { EventWithRelations } from "@/lib/events";
+import {
+  normalizeUrlVersions,
+  primaryUrlFromVersions,
+  type UrlVersion,
+} from "@/lib/url-versions";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABELS: Record<ItemStatus, string> = {
@@ -89,8 +96,12 @@ export function ChecklistItemCard({
   item: ChecklistItem;
   canWrite: boolean;
 }) {
+  const isLp = item.tipo === "lp_inscricao";
   const [pending, startTransition] = useTransition();
   const [url, setUrl] = useState(item.url ?? "");
+  const [versions, setVersions] = useState<UrlVersion[]>(() =>
+    normalizeUrlVersions(item.url_versions, item.url),
+  );
   const [observacao, setObservacao] = useState(item.observacao ?? "");
   const [testing, setTesting] = useState(false);
   const [localHttp, setLocalHttp] = useState(item.http_status);
@@ -125,6 +136,35 @@ export function ChecklistItemCard({
     });
   }
 
+  function saveVersions(next: UrlVersion[]) {
+    if (!canWrite) return;
+    const cleaned = next
+      .map((v) => ({
+        ...v,
+        label: v.label.trim() || "Versão",
+        url: v.url.trim(),
+      }))
+      .filter((v) => v.url !== "");
+
+    startTransition(async () => {
+      const result = await updateChecklistUrlVersions({
+        itemId: item.id,
+        versions: cleaned,
+      });
+      if (!result.ok) {
+        toast.error(result.message ?? "Não foi possível salvar as versões.");
+        return;
+      }
+      setVersions(cleaned);
+      setUrl(primaryUrlFromVersions(cleaned) ?? "");
+      toast.success(
+        cleaned.length > 1
+          ? `${cleaned.length} versões salvas.`
+          : "Versão da LP salva.",
+      );
+    });
+  }
+
   function saveObservacao() {
     if (!canWrite) return;
     startTransition(async () => {
@@ -138,11 +178,12 @@ export function ChecklistItemCard({
   }
 
   async function copyUrl() {
-    if (!url) {
+    const target = isLp ? primaryUrlFromVersions(versions) : url;
+    if (!target) {
       toast.error("Sem URL para copiar.");
       return;
     }
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(target);
     toast.success("Link copiado.");
   }
 
@@ -167,6 +208,8 @@ export function ChecklistItemCard({
     }
   }
 
+  const openTarget = isLp ? primaryUrlFromVersions(versions) : url;
+
   return (
     <article
       className={cn(
@@ -179,6 +222,9 @@ export function ChecklistItemCard({
           <h3 className="text-sm font-medium">{item.label}</h3>
           <p className="text-xs text-muted-foreground">
             Ordem {item.ordem} · {item.tipo}
+            {isLp && versions.length > 1
+              ? ` · ${versions.length} versões`
+              : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -216,59 +262,74 @@ export function ChecklistItemCard({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor={`url-${item.id}`} className="text-xs">
-          URL
-        </Label>
-        <div className="flex flex-wrap gap-2">
-          <Input
-            id={`url-${item.id}`}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onBlur={() => {
-              if (canWrite && url !== (item.url ?? "")) saveUrl();
-            }}
-            placeholder="https://"
-            disabled={!canWrite}
-            className="h-9 min-w-[200px] flex-1"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!url}
-            onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
-          >
-            <ExternalLink className="size-3.5" />
-            Abrir
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!url}
-            onClick={() => void copyUrl()}
-          >
-            <Copy className="size-3.5" />
-            Copiar
-          </Button>
-          {canWrite ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={!url || testing}
-              onClick={() => void testNow()}
-            >
-              {testing ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="size-3.5" />
-              )}
-              Testar agora
-            </Button>
-          ) : null}
+      {isLp ? (
+        <UrlVersionsEditor
+          versions={versions}
+          onChange={setVersions}
+          onCommit={saveVersions}
+          canWrite={canWrite}
+          pending={pending}
+        />
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor={`url-${item.id}`} className="text-xs">
+            URL
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              id={`url-${item.id}`}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onBlur={() => {
+                if (canWrite && url !== (item.url ?? "")) saveUrl();
+              }}
+              placeholder="https://"
+              disabled={!canWrite}
+              className="h-9 min-w-[200px] flex-1"
+            />
+          </div>
         </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!openTarget}
+          onClick={() =>
+            window.open(openTarget!, "_blank", "noopener,noreferrer")
+          }
+        >
+          <ExternalLink className="size-3.5" />
+          Abrir
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!openTarget}
+          onClick={() => void copyUrl()}
+        >
+          <Copy className="size-3.5" />
+          Copiar
+        </Button>
+        {canWrite ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={!openTarget || testing}
+            onClick={() => void testNow()}
+          >
+            {testing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3.5" />
+            )}
+            Testar agora
+          </Button>
+        ) : null}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">

@@ -6,6 +6,7 @@ import { AlertBanner } from "@/components/dashboard/alert-banner";
 import { DashboardFiltersBar } from "@/components/dashboard/dashboard-filters";
 import { EventsDataTable } from "@/components/dashboard/events-data-table";
 import { EventsMobileList } from "@/components/dashboard/events-mobile-list";
+import { StatusLegend } from "@/components/dashboard/status-legend";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Profile } from "@/lib/auth";
@@ -92,6 +93,8 @@ export function DashboardView({
         filteredEvents={filtered}
         allEvents={events}
       />
+
+      <StatusLegend />
 
       {filtered.length === 0 ? (
         <EmptyState

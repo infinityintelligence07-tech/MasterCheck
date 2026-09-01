@@ -7,6 +7,11 @@ import { requireProfile } from "@/lib/auth";
 import type { ChecklistTipo, ItemStatus } from "@/lib/constants";
 import { UFS_BRASIL } from "@/lib/events-meta";
 import { createClient } from "@/lib/supabase/server";
+import {
+  createUrlVersion,
+  versionsToJson,
+} from "@/lib/url-versions";
+import type { Json } from "@/types/database";
 
 const importRowSchema = z.object({
   action: z.enum(["criar", "atualizar"]),
@@ -50,13 +55,18 @@ async function applyChecklist(
   for (const tipo of tipos) {
     const patch: {
       url?: string | null;
+      url_versions?: Json;
       status?: ItemStatus;
       conferido_por?: string | null;
       conferido_em?: string | null;
     } = {};
 
     if (urls && tipo in urls) {
-      patch.url = urls[tipo] ?? null;
+      const url = urls[tipo] ?? null;
+      patch.url = url;
+      patch.url_versions = versionsToJson(
+        url ? [createUrlVersion({ label: "Principal", url })] : [],
+      );
     }
     if (statuses && statuses[tipo]) {
       const status = statuses[tipo] as ItemStatus;

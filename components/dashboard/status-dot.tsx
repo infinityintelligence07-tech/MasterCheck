@@ -1,17 +1,33 @@
 "use client";
 
 import { useOptimistic, useTransition } from "react";
-import { Copy } from "lucide-react";
+import { Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { updateChecklistStatus } from "@/app/actions/checklist";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDateTimeBr, formatRelativeBr } from "@/lib/dates";
-import { nextStatus } from "@/lib/dashboard";
-import type { ItemStatus } from "@/lib/constants";
+import { ITEM_STATUSES, type ItemStatus } from "@/lib/constants";
+import {
+  normalizeUrlVersions,
+  type UrlVersion,
+} from "@/lib/url-versions";
+import type { Json } from "@/types/database";
 import { cn } from "@/lib/utils";
 
 type StatusDotProps = {
@@ -19,6 +35,7 @@ type StatusDotProps = {
   status: ItemStatus;
   label: string;
   url: string | null;
+  urlVersions?: Json | UrlVersion[] | null;
   httpStatus: number | null;
   testadoEm: string | null;
   conferidoNome: string | null;
@@ -40,11 +57,129 @@ const labelByStatus: Record<ItemStatus, string> = {
   nao_aplica: "N/A",
 };
 
+const iconButtonClass =
+  "flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+function openUrl(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+async function copyUrl(url: string) {
+  await navigator.clipboard.writeText(url);
+  toast.success("Link copiado.");
+}
+
+function VersionActionList({
+  versions,
+  mode,
+}: {
+  versions: UrlVersion[];
+  mode: "open" | "copy";
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="px-1 text-xs font-medium text-muted-foreground">
+        {mode === "open" ? "Abrir versão" : "Copiar versão"}
+      </p>
+      <ul className="max-h-64 space-y-0.5 overflow-auto">
+        {versions.map((version) => (
+          <li key={version.id}>
+            <button
+              type="button"
+              className="flex w-full flex-col gap-0.5 rounded-md px-2 py-2 text-left hover:bg-muted"
+              onClick={() => {
+                if (mode === "open") openUrl(version.url);
+                else void copyUrl(version.url);
+              }}
+            >
+              <span className="text-sm font-medium">{version.label}</span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                {version.url}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function LinkActionButton({
+  versions,
+  mode,
+  label,
+}: {
+  versions: UrlVersion[];
+  mode: "open" | "copy";
+  label: string;
+}) {
+  const Icon = mode === "open" ? ExternalLink : Copy;
+  const tip = mode === "open" ? "Abrir em nova guia" : "Copiar link";
+  const aria =
+    mode === "open"
+      ? `Abrir ${label} em nova guia`
+      : `Copiar link de ${label}`;
+
+  if (versions.length === 0) return null;
+
+  if (versions.length === 1) {
+    const only = versions[0]!;
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className={iconButtonClass}
+            aria-label={aria}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (mode === "open") openUrl(only.url);
+              else void copyUrl(only.url);
+            }}
+          >
+            <Icon className="size-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{tip}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Popover>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(iconButtonClass, "relative")}
+              aria-label={`${aria} (escolher versão)`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Icon className="size-3.5" />
+              <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
+                {versions.length}
+              </span>
+            </button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          {tip} · {versions.length} versões
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent align="end" className="w-72 p-2">
+        <VersionActionList versions={versions} mode={mode} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function StatusDot({
   itemId,
   status,
   label,
   url,
+  urlVersions,
   httpStatus,
   testadoEm,
   conferidoNome,
@@ -57,9 +192,10 @@ export function StatusDot({
     (_curr, next: ItemStatus) => next,
   );
 
-  function cycle() {
-    if (!canWrite) return;
-    const next = nextStatus(optimistic);
+  const versions = normalizeUrlVersions(urlVersions, url);
+
+  function changeStatus(next: ItemStatus) {
+    if (!canWrite || next === optimistic) return;
     startTransition(async () => {
       addOptimistic(next);
       const result = await updateChecklistStatus({ itemId, status: next });
@@ -69,68 +205,87 @@ export function StatusDot({
     });
   }
 
-  async function copyLink(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!url) {
-      toast.error("Sem URL.");
-      return;
-    }
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copiado.");
-  }
-
   return (
     <div className="flex items-center justify-center gap-0.5">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            disabled={!canWrite || pending}
-            onClick={cycle}
-            aria-label={`${label}: ${labelByStatus[optimistic]}. Clique para alternar.`}
+      {canWrite ? (
+        <Select
+          value={optimistic}
+          onValueChange={(value) => changeStatus(value as ItemStatus)}
+          disabled={pending}
+        >
+          <SelectTrigger
+            size="sm"
+            aria-label={`${label}: ${labelByStatus[optimistic]}`}
             className={cn(
-              "flex size-9 items-center justify-center rounded-md transition-colors duration-150",
-              canWrite && "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "h-9 min-w-[7.5rem] gap-1.5 px-2",
               pending && "opacity-60",
             )}
           >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start" className="min-w-[9rem]">
+            {ITEM_STATUSES.map((itemStatus) => (
+              <SelectItem key={itemStatus} value={itemStatus}>
+                <span className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "size-2.5 shrink-0 rounded-full",
+                      colorByStatus[itemStatus],
+                    )}
+                    aria-hidden
+                  />
+                  {labelByStatus[itemStatus]}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
             <span
-              className={cn(
-                "size-3 rounded-full",
-                colorByStatus[optimistic],
-              )}
-            />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs space-y-1 text-xs">
-          <p className="font-medium">{label}</p>
-          <p>Status: {labelByStatus[optimistic]}</p>
-          {url ? (
-            <p className="break-all text-muted-foreground">{url}</p>
-          ) : (
-            <p className="text-muted-foreground">Sem URL</p>
-          )}
-          {httpStatus !== null ? <p>HTTP {httpStatus}</p> : <p>Sem teste HTTP</p>}
-          {testadoEm ? <p>Testado {formatRelativeBr(testadoEm)}</p> : null}
-          {conferidoNome && conferidoEm ? (
-            <p>
-              Conferido por {conferidoNome} em {formatDateTimeBr(conferidoEm)}
-            </p>
-          ) : (
-            <p>Ainda não conferido</p>
-          )}
-        </TooltipContent>
-      </Tooltip>
-      {url ? (
-        <button
-          type="button"
-          onClick={(e) => void copyLink(e)}
-          className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={`Copiar link de ${label}`}
-        >
-          <Copy className="size-3.5" />
-        </button>
-      ) : null}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground"
+              aria-label={`${label}: ${labelByStatus[optimistic]}`}
+            >
+              <span
+                className={cn(
+                  "size-2.5 shrink-0 rounded-full",
+                  colorByStatus[optimistic],
+                )}
+                aria-hidden
+              />
+              {labelByStatus[optimistic]}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs space-y-1 text-xs">
+            <p className="font-medium">{label}</p>
+            <p>Status: {labelByStatus[optimistic]}</p>
+            {versions.length > 0 ? (
+              <p className="text-muted-foreground">
+                {versions.length} versão(ões)
+              </p>
+            ) : (
+              <p className="text-muted-foreground">Sem URL</p>
+            )}
+            {httpStatus !== null ? (
+              <p>HTTP {httpStatus}</p>
+            ) : (
+              <p>Sem teste HTTP</p>
+            )}
+            {testadoEm ? <p>Testado {formatRelativeBr(testadoEm)}</p> : null}
+            {conferidoNome && conferidoEm ? (
+              <p>
+                Conferido por {conferidoNome} em {formatDateTimeBr(conferidoEm)}
+              </p>
+            ) : (
+              <p>Ainda não conferido</p>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      <LinkActionButton versions={versions} mode="open" label={label} />
+      <LinkActionButton versions={versions} mode="copy" label={label} />
     </div>
   );
 }

@@ -79,6 +79,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["checklist_tipo"];
           updated_at: string;
           url: string | null;
+          url_versions: Json;
         };
         Insert: {
           conferido_em?: string | null;
@@ -95,6 +96,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["checklist_tipo"];
           updated_at?: string;
           url?: string | null;
+          url_versions?: Json;
         };
         Update: {
           conferido_em?: string | null;
@@ -111,6 +113,7 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["checklist_tipo"];
           updated_at?: string;
           url?: string | null;
+          url_versions?: Json;
         };
         Relationships: [
           {

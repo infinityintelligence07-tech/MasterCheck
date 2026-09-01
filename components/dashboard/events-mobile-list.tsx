@@ -86,6 +86,7 @@ export function EventsMobileList({
                       status={item.status as ItemStatus}
                       label={col.label}
                       url={item.url}
+                      urlVersions={item.url_versions}
                       httpStatus={item.http_status}
                       testadoEm={item.testado_em}
                       conferidoNome={
