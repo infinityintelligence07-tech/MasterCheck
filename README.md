@@ -156,6 +156,20 @@ Novos usuários entram como `operador` (trigger). Admins ajustam roles direto na
 
 `SUPABASE_SERVICE_ROLE_KEY` fica apenas nas env vars da Vercel (Server Actions / scripts CI). **Nunca** prefixe com `NEXT_PUBLIC_`.
 
+## Deploy na VPS (subdomínio + automático)
+
+O projeto inclui Docker, Nginx de exemplo e GitHub Actions.
+
+Guia completo: [`deploy/README.md`](./deploy/README.md)
+
+Resumo:
+
+1. DNS `A` `mastercheck.iamcontrol.com.br` → IP da VPS (Cloudflare)  
+2. Clone em `/opt/mastercheck`, configure `.env` com `NEXT_PUBLIC_APP_URL=https://mastercheck.iamcontrol.com.br`  
+3. `docker compose up -d --build` + Nginx (proxy `127.0.0.1:3010`) + SSL  
+4. Secrets no GitHub: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_APP_PATH`, `VPS_PORT`  
+5. Push em `main` → redeploy automático  
+
 ---
 
 ## Estrutura do projeto
