@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { unstable_after as after } from "next/server";
 import { logActivity } from "@/lib/activity-log";
 import { requireProfile } from "@/lib/auth";
 import { probeUrl, type LinkProbeResult } from "@/lib/link-test";
@@ -145,12 +144,8 @@ export async function updateChecklistStatus(input: {
     valorNovo: parsed.data.status,
   });
 
-  const eventId = item.event_id;
-  after(() => {
-    revalidatePath(`/eventos/${eventId}`);
-    revalidatePath("/");
-  });
-
+  revalidatePath(`/eventos/${item.event_id}`);
+  revalidatePath("/");
   return { ok: true };
 }
 
