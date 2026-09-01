@@ -14,7 +14,6 @@ export const DASHBOARD_CHECKLIST_COLS: Array<{
   { tipo: "manychat_inscricao", label: "ManyChat inscrição", short: "MC Insc" },
   { tipo: "manychat_e_amanha", label: "ManyChat é amanhã", short: "MC Amanhã" },
   { tipo: "manychat_e_hoje", label: "ManyChat é hoje", short: "MC Hoje" },
-  { tipo: "teste_ponta_a_ponta", label: "Teste ponta a ponta", short: "Teste" },
 ];
 
 export type UltimaAtividade = {
