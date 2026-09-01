@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Check,
   Copy,
@@ -107,23 +107,30 @@ export function ChecklistItemCard({
   const [localHttp, setLocalHttp] = useState(item.http_status);
   const [localTestadoEm, setLocalTestadoEm] = useState(item.testado_em);
   const [localVeredicto, setLocalVeredicto] = useState<string | undefined>();
-
-  const [optimisticStatus, addOptimisticStatus] = useOptimistic(
+  const [displayStatus, setDisplayStatus] = useState<ItemStatus>(
     item.status as ItemStatus,
-    (_current, next: ItemStatus) => next,
   );
 
+  useEffect(() => {
+    setDisplayStatus(item.status as ItemStatus);
+  }, [item.status]);
+
   function changeStatus(next: ItemStatus) {
-    if (!canWrite) return;
-    startTransition(async () => {
-      addOptimisticStatus(next);
-      const result = await updateChecklistStatus({
+    if (!canWrite || next === displayStatus) return;
+
+    const previous = displayStatus;
+    setDisplayStatus(next);
+
+    startTransition(() => {
+      void updateChecklistStatus({
         itemId: item.id,
         status: next,
+      }).then((result) => {
+        if (!result.ok) {
+          setDisplayStatus(previous);
+          toast.error(result.message ?? "Falha ao atualizar status.");
+        }
       });
-      if (!result.ok) {
-        toast.error(result.message ?? "Falha ao atualizar status.");
-      }
     });
   }
 
@@ -231,16 +238,16 @@ export function ChecklistItemCard({
           <span
             className={cn(
               "size-2.5 rounded-full",
-              optimisticStatus === "ok" && "bg-status-ok",
-              optimisticStatus === "pendente" && "bg-status-pendente",
-              optimisticStatus === "erro" && "bg-status-erro",
-              optimisticStatus === "nao_aplica" && "bg-status-na",
+              displayStatus === "ok" && "bg-status-ok",
+              displayStatus === "pendente" && "bg-status-pendente",
+              displayStatus === "erro" && "bg-status-erro",
+              displayStatus === "nao_aplica" && "bg-status-na",
             )}
             aria-hidden
           />
           {canWrite ? (
             <Select
-              value={optimisticStatus}
+              value={displayStatus}
               onValueChange={(value) => changeStatus(value as ItemStatus)}
             >
               <SelectTrigger className="h-8 w-[140px]" aria-label="Status do item">
@@ -256,7 +263,7 @@ export function ChecklistItemCard({
             </Select>
           ) : (
             <span className="text-xs text-muted-foreground">
-              {STATUS_LABELS[optimisticStatus]}
+              {STATUS_LABELS[displayStatus]}
             </span>
           )}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { updateChecklistStatus } from "@/app/actions/checklist";
@@ -9,7 +9,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import {
   Popover,
@@ -186,22 +185,28 @@ export function StatusDot({
   conferidoEm,
   canWrite,
 }: StatusDotProps) {
-  const [pending, startTransition] = useTransition();
-  const [optimistic, addOptimistic] = useOptimistic(
-    status,
-    (_curr, next: ItemStatus) => next,
-  );
+  const [, startTransition] = useTransition();
+  const [displayStatus, setDisplayStatus] = useState<ItemStatus>(status);
+
+  useEffect(() => {
+    setDisplayStatus(status);
+  }, [status]);
 
   const versions = normalizeUrlVersions(urlVersions, url);
 
   function changeStatus(next: ItemStatus) {
-    if (!canWrite || next === optimistic) return;
-    startTransition(async () => {
-      addOptimistic(next);
-      const result = await updateChecklistStatus({ itemId, status: next });
-      if (!result.ok) {
-        toast.error(result.message ?? "Falha ao atualizar.");
-      }
+    if (!canWrite || next === displayStatus) return;
+
+    const previous = displayStatus;
+    setDisplayStatus(next);
+
+    startTransition(() => {
+      void updateChecklistStatus({ itemId, status: next }).then((result) => {
+        if (!result.ok) {
+          setDisplayStatus(previous);
+          toast.error(result.message ?? "Falha ao atualizar.");
+        }
+      });
     });
   }
 
@@ -209,19 +214,24 @@ export function StatusDot({
     <div className="flex items-center justify-center gap-0.5">
       {canWrite ? (
         <Select
-          value={optimistic}
+          value={displayStatus}
           onValueChange={(value) => changeStatus(value as ItemStatus)}
-          disabled={pending}
         >
           <SelectTrigger
             size="sm"
-            aria-label={`${label}: ${labelByStatus[optimistic]}`}
-            className={cn(
-              "h-9 min-w-[7.5rem] gap-1.5 px-2",
-              pending && "opacity-60",
-            )}
+            aria-label={`${label}: ${labelByStatus[displayStatus]}`}
+            className="h-9 min-w-[7.5rem] gap-1.5 px-2"
           >
-            <SelectValue />
+            <span className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  "size-2.5 shrink-0 rounded-full",
+                  colorByStatus[displayStatus],
+                )}
+                aria-hidden
+              />
+              <span className="truncate">{labelByStatus[displayStatus]}</span>
+            </span>
           </SelectTrigger>
           <SelectContent position="popper" align="start" className="min-w-[9rem]">
             {ITEM_STATUSES.map((itemStatus) => (
@@ -245,21 +255,21 @@ export function StatusDot({
           <TooltipTrigger asChild>
             <span
               className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground"
-              aria-label={`${label}: ${labelByStatus[optimistic]}`}
+              aria-label={`${label}: ${labelByStatus[displayStatus]}`}
             >
               <span
                 className={cn(
                   "size-2.5 shrink-0 rounded-full",
-                  colorByStatus[optimistic],
+                  colorByStatus[displayStatus],
                 )}
                 aria-hidden
               />
-              {labelByStatus[optimistic]}
+              {labelByStatus[displayStatus]}
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs space-y-1 text-xs">
             <p className="font-medium">{label}</p>
-            <p>Status: {labelByStatus[optimistic]}</p>
+            <p>Status: {labelByStatus[displayStatus]}</p>
             {versions.length > 0 ? (
               <p className="text-muted-foreground">
                 {versions.length} versão(ões)
