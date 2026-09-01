@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { LogOut, Menu, Settings } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 import { CommandPalette } from "@/components/layout/command-palette";
+import { MasterCheckLogo } from "@/components/layout/mastercheck-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -130,7 +131,8 @@ export function AppHeader({
             </SheetTrigger>
             <SheetContent side="left" className="w-72">
               <SheetHeader>
-                <SheetTitle>MasterCheck</SheetTitle>
+                <SheetTitle className="sr-only">MasterCheck</SheetTitle>
+                <MasterCheckLogo size="md" />
               </SheetHeader>
               <NavLinks
                 pathname={pathname}
@@ -147,9 +149,10 @@ export function AppHeader({
 
           <Link
             href="/"
-            className="shrink-0 font-semibold tracking-tight focus-visible:outline-none"
+            className="shrink-0 focus-visible:outline-none"
+            aria-label="MasterCheck — início"
           >
-            MasterCheck
+            <MasterCheckLogo size="md" priority />
           </Link>
         </div>
 

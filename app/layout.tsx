@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   title: "MasterCheck",
   description:
     "Painel interno de conferência de ativos digitais das MasterClasses IAM Treinamentos.",
+  icons: {
+    icon: "/mastercheck-logo.png",
+    apple: "/mastercheck-logo.png",
+  },
 };
 
 export default function RootLayout({
